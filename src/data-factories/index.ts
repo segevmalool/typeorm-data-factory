@@ -11,51 +11,55 @@ const typeFactory: { [key: string]: Function } = {
   numeric: () => 35.00
 };
 
-function generateInstanceData(entityMeta: EntityMetadata): ObjectLiteral[] {
+interface DataWithDescription {
+  entity: EntityMetadata;
+  instanceData: ObjectLiteral;
+}
 
-  function _generateInstanceData(entityMeta: EntityMetadata, accumulator: ObjectLiteral[]): ObjectLiteral[] {
+function generateInstanceData(entityMeta: EntityMetadata): DataWithDescription[] {
+
+  function _generateInstanceData(entityMeta: EntityMetadata, accumulator: DataWithDescription[]): DataWithDescription[] {
     // Generates records for an arbitrary db entity and its dependencies.
-    let dependenciesInstanceData: ObjectLiteral;
+    let dependenciesInstanceData: DataWithDescription[];
     const instanceData: typeof entityMeta.propertiesMap = {};
 
     for (let colMeta of entityMeta.columns) {
       if (colMeta.referencedColumn) {
-        dependenciesInstanceData = _generateInstanceData(colMeta.referencedColumn.entityMetadata, accumulator);
+        dependenciesInstanceData = _generateInstanceData(
+            colMeta.referencedColumn.entityMetadata,
+            accumulator
+        );
       }
 
       // Generate a data for the column
       const colType = colMeta.type as ColumnType;
       const colTypeFactory = typeFactory[colType.toString()];
 
-      if (!colTypeFactory) {
-        // if no factory is defined for this type, return null
-        instanceData[colMeta.propertyName] = null;
-      } else {
-        instanceData[colMeta.propertyName] = colTypeFactory();
-      }
+      instanceData[colMeta.propertyName] = colTypeFactory() || null;
 
       if (colMeta.referencedColumn) {
         // if this is a foreign key reference, override the generated id with the dependency id
         // @ts-ignore
-        instanceData[colMeta.propertyName] = dependenciesInstanceData[dependenciesInstanceData.length - 1].id;
+        instanceData[colMeta.propertyName] = dependenciesInstanceData[dependenciesInstanceData.length - 1].instanceData.id;
       }
     }
-
-    accumulator.push(instanceData);
-    return [...accumulator.filter(entity => entity.id !== instanceData.id), instanceData];
+    accumulator.push({instanceData, entity: entityMeta} as DataWithDescription);
+    return [
+      ...accumulator.filter(describedData => describedData.instanceData.id !== instanceData.id),
+      { instanceData, entity: entityMeta }
+    ];
   }
 
   return _generateInstanceData(entityMeta, []);
 }
 
-function generateSingleEntity<T extends EntityMetadata>(
-  entityMeta: T,
-  instanceData: typeof EntityMetadata.prototype.propertiesMap,
+function generateSingleEntity(
+  describedData: DataWithDescription,
   dataSource: DataSource
 ) {
   const instance = dataSource.manager.create(
-    entityMeta.inheritanceTree[0].prototype.constructor,
-    instanceData
+    describedData.entity.inheritanceTree[0].prototype.constructor,
+    describedData.instanceData
   );
 
   return instance;
@@ -65,11 +69,12 @@ function generateAllEntities(dataSource: DataSource) {
   // Generates records for all entities in the datasource, respecting foreign keys.
   const rootEntity = dataSource.entityMetadatas[dataSource.entityMetadatas.length-1];
 
-  const instanceData = generateInstanceData(rootEntity);
-  const allEntities = instanceData.map(
-      (instanceData) => generateSingleEntity(rootEntity, instanceData, dataSource)
+  const describedInstanceData: DataWithDescription[] = generateInstanceData(rootEntity);
+  const allEntities = describedInstanceData.map(
+      (describedData) => generateSingleEntity(
+          describedData, dataSource
+      )
   );
-  console.log(allEntities);
 
   return allEntities;
 }
@@ -83,8 +88,10 @@ async function main() {
   await GlobalDataSource.manager.save(allEntities);
 
   await GlobalDataSource.destroy();
+
+  return allEntities;
 }
 
 if (require.main === module) {
-  main();
+  main().then((entities) => console.log('Created entities: ', entities));
 }
