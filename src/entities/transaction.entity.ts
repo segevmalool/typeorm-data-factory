@@ -1,4 +1,4 @@
-import {Column, Entity, ManyToOne, PrimaryColumn} from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './user.entity';
 
 @Entity({ name: 'transactions' })
@@ -12,6 +12,6 @@ export class Transaction {
   @ManyToOne((type) => User, (user) => user.id)
   to_user: User;
 
-  @Column({ type: 'numeric'})
+  @Column({ type: 'numeric' })
   amount: number | string;
 }

@@ -1,12 +1,12 @@
 {
-  "name": "transer-db",
+  "name": "typeorm-data-factory",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "start": "node dist/index.js",
     "build": "tsc",
-    "seed-db": "node dist/data-factories/index.js"
+    "seed": "node dist/data-factories/index.js"
   },
   "keywords": [],
   "author": "",
