@@ -24,7 +24,7 @@ export function generateInstanceDataWithDependencies(
     accumulator: DataWithDescription[]
   ): DataWithDescription[] {
     // Generates records for an arbitrary db entity and its dependencies.
-    let dependenciesInstanceData: DataWithDescription[];
+    let dependenciesInstanceData: DataWithDescription[] = [];
     const instanceData: typeof entityMeta.propertiesMap = {};
 
     for (let colMeta of entityMeta.columns) {
@@ -42,13 +42,7 @@ export function generateInstanceDataWithDependencies(
 
       if (colMeta.referencedColumn) {
         // if this is a foreign key reference, override the generated id with the dependency id
-        // @ts-ignore
-        generatedValue =
-            // @ts-ignore
-          dependenciesInstanceData[
-              // @ts-ignore
-            dependenciesInstanceData.length - 1
-          ].instanceData.id;
+        generatedValue = dependenciesInstanceData[dependenciesInstanceData.length - 1].instanceData.id;
       }
 
       instanceData[colMeta.propertyName] = generatedValue;
