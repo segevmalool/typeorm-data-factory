@@ -1,6 +1,6 @@
-import { GlobalDataSource } from '../typeorm';
-
-import { ColumnType, DataSource, EntityMetadata, ObjectLiteral } from 'typeorm';
+import {
+  ColumnType, DataSource, EntityManager, EntityMetadata, ObjectLiteral, Entity
+} from 'typeorm';
 import { v4 as uuid } from 'uuid';
 
 // The string key is to handle the constructor-based ColumnTypes.
@@ -11,12 +11,12 @@ const typeFactory: { [key: string]: Function } = {
   numeric: () => 35.0,
 };
 
-interface DataWithDescription {
+export interface DataWithDescription {
   entity: EntityMetadata;
   instanceData: ObjectLiteral;
 }
 
-function generateInstanceData(
+export function generateInstanceDataWithDependencies(
   entityMeta: EntityMetadata
 ): DataWithDescription[] {
   function _generateInstanceData(
@@ -38,74 +38,47 @@ function generateInstanceData(
       // Generate a data for the column
       const colType = colMeta.type as ColumnType;
       const colTypeFactory = typeFactory[colType.toString()];
-
-      instanceData[colMeta.propertyName] = colTypeFactory() || null;
+      let generatedValue = colTypeFactory() || null;
 
       if (colMeta.referencedColumn) {
         // if this is a foreign key reference, override the generated id with the dependency id
         // @ts-ignore
-        instanceData[colMeta.propertyName] =
+        generatedValue =
             // @ts-ignore
           dependenciesInstanceData[
               // @ts-ignore
             dependenciesInstanceData.length - 1
           ].instanceData.id;
       }
+
+      instanceData[colMeta.propertyName] = generatedValue;
     }
+
     accumulator.push({
       instanceData,
       entity: entityMeta,
     } as DataWithDescription);
-    return [
-      ...accumulator.filter(
-        (describedData) => describedData.instanceData.id !== instanceData.id
-      ),
-      { instanceData, entity: entityMeta },
-    ];
+
+    return accumulator;
   }
 
   return _generateInstanceData(entityMeta, []);
 }
 
-function generateSingleEntity(
-  describedData: DataWithDescription,
-  dataSource: DataSource
+export function generateEntitiesWithDependencies(
+    rootEntity: EntityMetadata,
+    manager: EntityManager
 ) {
-  const instance = dataSource.manager.create(
-    describedData.entity.inheritanceTree[0].prototype.constructor,
-    describedData.instanceData
-  );
-
-  return instance;
-}
-
-function generateAllEntities(dataSource: DataSource) {
-  // Generates records for all entities in the datasource, respecting foreign keys.
-  const rootEntity =
-    dataSource.entityMetadatas[dataSource.entityMetadatas.length - 1];
 
   const describedInstanceData: DataWithDescription[] =
-    generateInstanceData(rootEntity);
+    generateInstanceDataWithDependencies(rootEntity);
+
   const allEntities = describedInstanceData.map((describedData) =>
-    generateSingleEntity(describedData, dataSource)
+      manager.create(
+          describedData.entity.inheritanceTree[0].prototype.constructor,
+          describedData.instanceData
+      )
   );
 
   return allEntities;
-}
-
-async function main() {
-  // Assume the db is built up as needed for seeding.
-  await GlobalDataSource.initialize();
-
-  const allEntities: ObjectLiteral[] = generateAllEntities(GlobalDataSource);
-
-  await GlobalDataSource.manager.save(allEntities);
-
-  await GlobalDataSource.destroy();
-
-  return allEntities;
-}
-
-if (require.main === module) {
-  main().then((entities) => console.log('Created entities: ', entities));
 }

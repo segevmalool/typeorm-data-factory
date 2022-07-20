@@ -1,8 +1,8 @@
 import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './user.entity';
 
-@Entity({ name: 'transactions' })
-export class Transaction {
+@Entity({ name: 'transfers' })
+export class Transfer {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
 

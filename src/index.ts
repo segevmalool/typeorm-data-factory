@@ -1,19 +1,23 @@
-import 'reflect-metadata';
-
 import { GlobalDataSource } from './typeorm';
+import { ObjectLiteral } from 'typeorm';
+import { generateEntitiesWithDependencies } from './data-factory';
 
-import { User } from './entities';
-
-(async function main() {
+async function main() {
+  // Assume the db is built up as needed for seeding.
   await GlobalDataSource.initialize();
 
-  const userRepository = GlobalDataSource.getRepository(User);
+  const allEntities: ObjectLiteral[] = generateEntitiesWithDependencies(
+      GlobalDataSource.entityMetadatas[GlobalDataSource.entityMetadatas.length - 1],
+      GlobalDataSource.manager
+  );
 
-  userRepository.find().then((users) => {
-    console.log(users);
-  });
+  await GlobalDataSource.manager.save(allEntities);
 
-  setInterval(() => {
-    console.log('hearbeat');
-  }, 1000);
-})();
+  await GlobalDataSource.destroy();
+
+  return allEntities;
+}
+
+if (require.main === module) {
+  main().then((entities) => console.log('Created entities: ', entities));
+}

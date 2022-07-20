@@ -1,7 +1,7 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 import { User } from './entities';
-import { Transaction } from './entities/transaction.entity';
+import { Transfer } from './entities/transfer.entity';
 
 const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -10,7 +10,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: 'segevmalool',
   database: 'friends',
   migrations: [__dirname + '/migrations/*.js'],
-  entities: [User, Transaction],
+  entities: [User, Transfer],
   synchronize: false,
 };
 
