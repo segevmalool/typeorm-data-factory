@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "build": "tsc",
-    "seed": "node dist/data-factories/index.js"
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",

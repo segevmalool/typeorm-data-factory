@@ -8,7 +8,7 @@ const dataSourceOptions: DataSourceOptions = {
   host: 'localhost',
   port: 5432,
   username: 'segevmalool',
-  database: 'friends',
+  database: 'bank',
   migrations: [__dirname + '/migrations/*.js'],
   entities: [User, Transfer],
   synchronize: false,
