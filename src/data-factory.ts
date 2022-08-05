@@ -162,7 +162,6 @@ export function generateInstanceDataWithDependencies(
         for (const colMetaTwo of data.dependencies) {
           for (let i = 0; i < data.instances[colMeta.propertyName].length; i += 1) {
             const instance = data.instances[colMeta.propertyName][i];
-            console.log(instance);
 
             // Assume each entity has an id field, and the foreign keys always reference the id field.
             if (data[colMeta.propertyName][colMetaTwo.propertyName].hasDependencies) {
@@ -234,7 +233,7 @@ export function generateEntitiesWithDependencies(
 ) {
 
   const describedInstanceData: any = generateInstanceDataWithDependencies(rootEntity);
-  console.log(JSON.stringify(describedInstanceData.map((q: any) => q.instance)));
+
   const allEntities = describedInstanceData.map((describedData: AnnotatedData) =>
       manager.create(
           describedData.meta.inheritanceTree[0].prototype.constructor,
