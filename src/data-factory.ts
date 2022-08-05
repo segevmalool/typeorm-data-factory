@@ -13,16 +13,16 @@ const typeFactory: { [key: string]: Function } = {
   numeric: () => 35.0,
 };
 
-export interface DataWithDescription {
-  entity: EntityMetadata;
-  instanceData: ObjectLiteral;
-}
+const PLACEHOLDER = 'PLACEHOLDER';
 
-const PLACEHOLDER = uuid();
+interface AnnotatedData {
+  instance: ObjectLiteral;
+  meta: EntityMetadata;
+}
 
 export function generateInstanceDataWithDependencies(
   entityMeta: EntityMetadata
-): DataWithDescription[] {
+): any {
 
   function _generateInstanceWithRelationshipPlaceholders<T extends EntityMetadata>(
       entityMeta: T
@@ -48,7 +48,7 @@ export function generateInstanceDataWithDependencies(
     return instanceData;
   }
 
-  function getRelationshipColumns(entityMeta: EntityMetadata) {
+  function _getRelationshipColumns(entityMeta: EntityMetadata) {
     const dependencyColumns = []
     for (let colMeta of entityMeta.columns) {
       if (colMeta.referencedColumn && colMeta.relationMetadata) {
@@ -58,91 +58,174 @@ export function generateInstanceDataWithDependencies(
     return dependencyColumns;
   }
 
-  function generateOneOrManyInstances(
+  function _generateNumInstances(
       dependencyColumns: ColumnMetadata[],
-      entityMeta: EntityMetadata
-  ): {[key: string]: (typeof entityMeta.propertiesMap)[]} {
-    const instances: {[key: string]: (typeof entityMeta.propertiesMap)[]} = {};
-    for (const colMeta of dependencyColumns) {
-      assert(
-          colMeta.relationMetadata && colMeta.referencedColumn,
-          "Column is not an FK (2)."
-      );
+      entityMeta: EntityMetadata,
+      numInstances: number
+  ): {[key: string]: (typeof entityMeta.propertiesMap)[]} | (typeof entityMeta.propertiesMap)[] {
 
-      const numInstances = colMeta.relationMetadata.isOneToOne ? 1 : 3;
+    if (dependencyColumns.length > 0) {
+      const instances: { [key: string]: (typeof entityMeta.propertiesMap)[] } = {};
+
+      for (const colMeta of dependencyColumns) {
+        assert(
+            colMeta.relationMetadata && colMeta.referencedColumn,
+            "Column is not an FK (2)."
+        );
+
+        for (let i = 0; i < numInstances; i += 1) {
+          if (!instances[colMeta.propertyName])
+            instances[colMeta.propertyName] = [];
+          const instance = _generateInstanceWithRelationshipPlaceholders(entityMeta);
+          instances[colMeta.propertyName].push(instance);
+        }
+      }
+
+      return instances;
+    } else {
+      const instances: ObjectLiteral[] = [];
 
       for (let i = 0; i < numInstances; i += 1) {
         const instance = _generateInstanceWithRelationshipPlaceholders(entityMeta);
-        if (!instances[colMeta.propertyName])
-          instances[colMeta.propertyName] = []
-        instances[colMeta.propertyName].push(instance);
+        instances.push(instance);
       }
+
+      return instances;
     }
 
-    return instances;
+    return []; // Should never happen
   }
 
   function _generateInstanceData(
     entityMeta: EntityMetadata,
-    accumulator: DataWithDescription[]
-  ): DataWithDescription[] {
-    let allDependenciesInstanceData: DataWithDescription[] = [];
-
+    accumulator: any
+  ) {
     // 1. Find FK cols.
     const dependencyColumns: ColumnMetadata[] =
-        getRelationshipColumns(entityMeta);
+        _getRelationshipColumns(entityMeta);
 
     // 2. Generate one or many placeholder records for each dependency column
-    const instances: {[key: string]: (typeof entityMeta.propertiesMap)[]} =
-        generateOneOrManyInstances(dependencyColumns, entityMeta);
+    const instances: {[key: string]: (typeof entityMeta.propertiesMap)[]} | (typeof entityMeta.propertiesMap)[] =
+        _generateNumInstances(dependencyColumns, entityMeta, 3);
 
     // 3. Generate dependencies for fk columns and fill in the
-    const visitedDependencies: {[key: string]: DataWithDescription[]} = {};
+    const generatedDependencies: any = {};
     for (const colMeta of dependencyColumns) {
       assert(
           colMeta.relationMetadata && colMeta.referencedColumn,
           "Column is not an FK (3)."
       );
 
-      visitedDependencies[colMeta.propertyName] = _generateInstanceData(
-          colMeta.referencedColumn.entityMetadata,
-          accumulator
-      );
-
+      // 3.1 Generate all dependencies for this set of records.
       for (const colMetaTwo of dependencyColumns) {
-        for (const instance of instances[colMetaTwo.propertyName]) {
-          for (const colName in visitedDependencies) {
-            if (instance[colName] !== PLACEHOLDER) continue;
-            const dependency = visitedDependencies[colName];
-            instance[colName] =
-                dependency[dependency.length - 1].instanceData.id;
-          }
-        }
+        assert(
+            colMetaTwo.relationMetadata && colMetaTwo.referencedColumn,
+            "Column is not an FK (4)."
+        );
+
+        if (!generatedDependencies[colMetaTwo.propertyName])
+            generatedDependencies[colMetaTwo.propertyName] = {}
+
+        generatedDependencies[colMeta.propertyName][colMetaTwo.propertyName] =
+            _generateInstanceData(
+                colMetaTwo.referencedColumn.entityMetadata,
+                accumulator
+            );
       }
     }
 
-    for (const colMeta of dependencyColumns) {
-      accumulator.push(
-          ...instances[colMeta.propertyName].map((instance) => ({
-            instanceData: instance,
-            entity: entityMeta,
-          } as DataWithDescription))
-      );
-    }
-
-    // 4. If it's a root, then generate a single instance.
     if (dependencyColumns.length === 0) {
-      const instance = _generateInstanceWithRelationshipPlaceholders(entityMeta);
-      accumulator.push({
-        instanceData: instance,
-        entity: entityMeta,
-      } as DataWithDescription);
+      accumulator = {
+        instances,
+        entityMeta,
+        hasDependencies: false
+      };
+    } else {
+      accumulator = {
+        ...generatedDependencies,
+        instances,
+        entityMeta,
+        hasDependencies: true,
+        dependencies: dependencyColumns
+      };
     }
 
     return accumulator;
   }
 
-  return _generateInstanceData(entityMeta, []);
+  function _fillDependenciesAndReduce(data: any, accumulator: any[]): any[] {
+    let filledInstances: AnnotatedData[] = [];
+    let filledDependencyInstances: any = {};
+
+    if (data.hasDependencies) {
+      for (const colMeta of data.dependencies) {
+        for (const colMetaTwo of data.dependencies) {
+          for (let i = 0; i < data.instances[colMeta.propertyName].length; i += 1) {
+            const instance = data.instances[colMeta.propertyName][i];
+            console.log(instance);
+
+            // Assume each entity has an id field, and the foreign keys always reference the id field.
+            if (data[colMeta.propertyName][colMetaTwo.propertyName].hasDependencies) {
+              if (colMetaTwo.relationMetadata.isManyToOne) {
+                const arbitraryDependency = data[colMeta.propertyName][colMetaTwo.propertyName]
+                    .dependencies[0].propertyName;
+                instance[colMetaTwo.propertyName] = data[colMeta.propertyName][colMetaTwo.propertyName]
+                    .instances[arbitraryDependency][0].id;
+              } else if (colMetaTwo.relationMetadata.isOneToOne) {
+                const arbitraryDependency = data[colMeta.propertyName][colMetaTwo.propertyName]
+                    .dependencies[0].propertyName;
+                instance[colMetaTwo.propertyName] = data[colMeta.propertyName][colMetaTwo.propertyName]
+                    .instances[arbitraryDependency][i].id;
+              }
+            } else {
+              if (colMetaTwo.relationMetadata.isManyToOne) {
+                instance[colMetaTwo.propertyName] = data[colMeta.propertyName][colMetaTwo.propertyName].instances[0].id;
+              } else if (colMetaTwo.relationMetadata.isOneToOne) {
+                instance[colMetaTwo.propertyName] = data[colMeta.propertyName][colMetaTwo.propertyName].instances[i].id;
+              }
+            }
+          }
+        }
+      }
+
+      for (const colMeta of data.dependencies) {
+        filledInstances.push(
+            ...data.instances[colMeta.propertyName].map((instance: any) => ({
+              instance,
+              meta: data.entityMeta
+            }))
+        );
+      }
+
+      for (const colMeta of data.dependencies) {
+        for (const colMetaTwo of data.dependencies) {
+          if (!filledDependencyInstances[colMeta.propertyName])
+            filledDependencyInstances[colMeta.propertyName] = {};
+
+          filledDependencyInstances[colMeta.propertyName][colMetaTwo.propertyName] = _fillDependenciesAndReduce(
+              data[colMeta.propertyName][colMetaTwo.propertyName],
+              accumulator
+          );
+        }
+      }
+
+      for (const colMeta of data.dependencies) {
+        for (const colMetaTwo of data.dependencies) {
+          filledInstances.push(...filledDependencyInstances[colMeta.propertyName][colMetaTwo.propertyName]);
+        }
+      }
+    } else {
+      filledInstances = data.instances.map((instance: any) => ({
+        instance,
+        meta: data.entityMeta
+      }));
+    }
+
+    return accumulator.concat(filledInstances);
+  }
+
+  let generatedData = _generateInstanceData(entityMeta, {});
+  return _fillDependenciesAndReduce(generatedData, []);
 }
 
 export function generateEntitiesWithDependencies(
@@ -150,15 +233,15 @@ export function generateEntitiesWithDependencies(
     manager: EntityManager
 ) {
 
-  const describedInstanceData: DataWithDescription[] =
-    generateInstanceDataWithDependencies(rootEntity);
-
-  const allEntities = describedInstanceData.map((describedData) =>
+  const describedInstanceData: any = generateInstanceDataWithDependencies(rootEntity);
+  console.log(JSON.stringify(describedInstanceData.map((q: any) => q.instance)));
+  const allEntities = describedInstanceData.map((describedData: AnnotatedData) =>
       manager.create(
-          describedData.entity.inheritanceTree[0].prototype.constructor,
-          describedData.instanceData
+          describedData.meta.inheritanceTree[0].prototype.constructor,
+          describedData.instance
       )
   );
 
   return allEntities;
 }
+

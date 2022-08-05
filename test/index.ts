@@ -1,6 +1,6 @@
 import { GlobalDataSource } from './typeorm';
 import { ObjectLiteral } from 'typeorm';
-import { generateEntitiesWithDependencies } from '../src/data-factory';
+import { generateEntitiesWithDependencies } from '../dist/data-factory';
 
 async function main() {
   // Assume the db is built up as needed for seeding.

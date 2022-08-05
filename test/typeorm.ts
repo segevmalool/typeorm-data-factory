@@ -2,6 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 
 import { User } from './entities';
 import { Transfer } from './entities/transfer.entity';
+import { Authority } from './entities/authority.entity'
 
 const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -10,7 +11,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: 'segevmalool',
   database: 'bank',
   migrations: [__dirname + '/migrations/*.js'],
-  entities: [User, Transfer],
+  entities: [User, Transfer, Authority],
   synchronize: false,
 };
 
