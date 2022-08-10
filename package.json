@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build:all": "yarn workspaces foreach run build",
-    "clean": "yarn workspaces foreach exec rimraf dist",
+    "clean": "yarn workspaces foreach exec rimraf dist node_modules",
     "db:seed": "yarn run generate-data"
   },
   "workspaces": [
