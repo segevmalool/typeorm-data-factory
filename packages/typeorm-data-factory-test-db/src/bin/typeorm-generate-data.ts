@@ -4,7 +4,7 @@ import { ObjectLiteral } from 'typeorm';
 import { generateEntitiesWithDependencies } from 'typeorm-data-factory';
 
 async function main() {
-  // Assume the db is built up as needed for seeding.
+  // Assume the db is defined (ie. data definitions are applied).
   await GlobalDataSource.initialize();
 
   const allEntities: ObjectLiteral[] = generateEntitiesWithDependencies(

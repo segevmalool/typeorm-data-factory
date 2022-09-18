@@ -1,8 +1,8 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
 
 import { User } from './entities';
-import { Transfer } from './entities/transfer.entity';
-import { Authority } from './entities/authority.entity'
+import { Transfer } from './entities';
+import { Authority } from './entities';
 
 const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
