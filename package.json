@@ -3,7 +3,8 @@
   "packageManager": "yarn@3.2.2",
   "private": true,
   "bin": {
-    "generate-data": "packages/typeorm-data-factory-test-db/dist/bin/typeorm-generate-data.js"
+    "generate-data": "packages/typeorm-data-factory-test-db/dist/bin/typeorm-generate-data.js",
+    "start-client": "packages/typeorm-data-factory-test-client/dist/bin/server.js"
   },
   "scripts": {
     "build:all": "yarn workspaces foreach run build",
