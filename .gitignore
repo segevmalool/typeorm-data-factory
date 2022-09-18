@@ -6,3 +6,4 @@ dist-test
 **/*.js.map
 test/**/*.js
 .yarn/cache
+.yarn/install-state.gz
