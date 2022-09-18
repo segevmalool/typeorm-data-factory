@@ -98,7 +98,7 @@ export function generateInstanceDataWithDependencies(
 
   function _generateInstanceData(
     entityMeta: EntityMetadata,
-    accumulator: any
+    accumulator: any,
   ) {
     // 1. Find FK cols.
     const dependencyColumns: ColumnMetadata[] =
@@ -106,28 +106,17 @@ export function generateInstanceDataWithDependencies(
 
     // 2. Generate one or many placeholder records for each dependency column
     const instances: {[key: string]: (typeof entityMeta.propertiesMap)[]} | (typeof entityMeta.propertiesMap)[] =
-        _generateNumInstances(dependencyColumns, entityMeta, 3);
+        _generateNumInstances(dependencyColumns, entityMeta, 1);
 
-    // 3. Generate dependencies for fk columns and fill in the
-    const generatedDependencies: any = {};
+    const dependencyInstances: any = {};
     for (const colMeta of dependencyColumns) {
-      assert(
-          colMeta.relationMetadata && colMeta.referencedColumn,
-          "Column is not an FK (3)."
-      );
-
-      // 3.1 Generate all dependencies for this set of records.
       for (const colMetaTwo of dependencyColumns) {
-        assert(
-            colMetaTwo.relationMetadata && colMetaTwo.referencedColumn,
-            "Column is not an FK (4)."
-        );
+        if (!dependencyInstances[colMetaTwo.propertyName])
+            dependencyInstances[colMetaTwo.propertyName] = {}
 
-        if (!generatedDependencies[colMetaTwo.propertyName])
-            generatedDependencies[colMetaTwo.propertyName] = {}
-
-        generatedDependencies[colMeta.propertyName][colMetaTwo.propertyName] =
+        dependencyInstances[colMeta.propertyName][colMetaTwo.propertyName] =
             _generateInstanceData(
+                // @ts-ignore
                 colMetaTwo.referencedColumn.entityMetadata,
                 accumulator
             );
@@ -142,7 +131,7 @@ export function generateInstanceDataWithDependencies(
       };
     } else {
       accumulator = {
-        ...generatedDependencies,
+        ...dependencyInstances,
         instances,
         entityMeta,
         hasDependencies: true,
