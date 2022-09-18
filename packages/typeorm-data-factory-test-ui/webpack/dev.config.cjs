@@ -1,5 +1,6 @@
 const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
+const webpack = require('webpack')
 
 module.exports = {
     mode: 'development',
@@ -18,6 +19,16 @@ module.exports = {
             patterns: [
                 { from: './src/index.html', to: 'index.html' }
             ]
-        })
-    ]
+        }),
+        // new webpack.NormalModuleReplacementPlugin(/typeorm$/, (result) => {
+        //     result.request = result.request.replace(/typeorm/, "typeorm/browser");
+        // }),
+        // new webpack.ProvidePlugin({
+        //     'window.SQL': ''
+        // })
+    ],
+    devtool: 'source-map',
+    resolve: {
+        extensions: ['.js', '.ts']
+    }
 }
