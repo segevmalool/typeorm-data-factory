@@ -1,1 +1,1 @@
-import './entity-graph';
+import './app-root';

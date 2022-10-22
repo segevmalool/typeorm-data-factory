@@ -1,4 +1,5 @@
 export {
   generateInstanceDataWithDependencies,
-  generateEntitiesWithDependencies
+  generateEntitiesWithDependencies,
+  getDependencyColumns,
 } from './data-factory';

@@ -20,6 +20,16 @@ interface AnnotatedData {
   meta: EntityMetadata;
 }
 
+export function getDependencyColumns(entityMeta: EntityMetadata) {
+  const dependencyColumns = [];
+  for (let colMeta of entityMeta.columns) {
+    if (colMeta.referencedColumn && colMeta.relationMetadata) {
+      dependencyColumns.push(colMeta);
+    }
+  }
+  return dependencyColumns;
+}
+
 export function generateInstanceDataWithDependencies(
   entityMeta: EntityMetadata
 ): any {
@@ -46,16 +56,6 @@ export function generateInstanceDataWithDependencies(
     }
 
     return instanceData;
-  }
-
-  function _getRelationshipColumns(entityMeta: EntityMetadata) {
-    const dependencyColumns = []
-    for (let colMeta of entityMeta.columns) {
-      if (colMeta.referencedColumn && colMeta.relationMetadata) {
-        dependencyColumns.push(colMeta);
-      }
-    }
-    return dependencyColumns;
   }
 
   function _generateNumInstances(
@@ -102,7 +102,7 @@ export function generateInstanceDataWithDependencies(
   ) {
     // 1. Find FK cols.
     const dependencyColumns: ColumnMetadata[] =
-        _getRelationshipColumns(entityMeta);
+        getDependencyColumns(entityMeta);
 
     // 2. Generate one or many placeholder records for each dependency column
     const instances: {[key: string]: (typeof entityMeta.propertiesMap)[]} | (typeof entityMeta.propertiesMap)[] =

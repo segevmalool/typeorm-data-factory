@@ -2,8 +2,9 @@ import {LitElement, html} from 'lit';
 import {customElement, state} from 'lit/decorators.js';
 import cy from 'cytoscape';
 import { EntityMetadata } from 'typeorm';
+import { v4 as uuid } from 'uuid';
 
-const typeormErdUrl = 'http://localhost:3000';
+export const typeormErdUrl = 'http://localhost:3000';
 
 interface Graph<T> {
   nodes: T[];
@@ -30,6 +31,18 @@ export class EntityGraph extends LitElement {
         }
       });
     }
+
+    for (const edge of graph.edges) {
+      this.cytoscapeContext.add({
+        group: 'edges',
+        data: {
+          id: uuid(),
+          source: edge[0],
+          target: edge[1],
+          directed: true,
+        }
+      })
+    }
   }
 
   async loadEntityGraph() {
@@ -54,17 +67,23 @@ export class EntityGraph extends LitElement {
     });
 
     await this.loadEntityGraph();
-    console.log(this.entityGraph);
-
     this.buildCyGraph(this.entityGraph);
-
     const layout = this.cytoscapeContext.layout({
       name: 'random',
     });
-
+    // @ts-ignore
+    this.cytoscapeContext.style().selector('edge').style('curve-style', 'bezier').style('target-arrow-shape', 'vee');
     layout.run();
-
     this.cytoscapeContext.fit();
+
+    this.cytoscapeContext.nodes().forEach((node) => {
+      node.on('click', (event) => {
+        this.dispatchEvent(new CustomEvent('entitySelected', {
+          composed: true,
+          detail: {entityName: event.target.data().label}
+        }));
+      });
+    });
   }
 
   render() {
